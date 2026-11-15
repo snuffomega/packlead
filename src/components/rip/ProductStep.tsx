@@ -1,22 +1,29 @@
-import { Check, History, ScanLine, Search } from 'lucide-react';
+import { Camera, Check, History, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { GAMES, PRODUCT_TYPES, gameMeta, productArt, productTypeMeta } from '../../lib/catalog';
 import { useCatalog } from '../../lib/catalogContext';
 import { money } from '../../lib/format';
 import { getRecentProducts } from '../../lib/session';
 import type { GameId, Product } from '../../lib/types';
-import { ScanModal } from './ScanModal';
+import { ProductPhotoModal } from './ProductPhotoModal';
 
 export function ProductStep({
   selected,
   onSelect,
+  scanUrl,
+  setScanUrl,
+  initialSetId,
 }: {
   selected: Product | null;
-  onSelect: (p: Product, scanUrl: string | null) => void;
+  onSelect: (p: Product) => void;
+  scanUrl: string | null;
+  setScanUrl: (url: string | null) => void;
+  initialSetId?: string | null;
 }) {
   const { sets, products, setById, productById } = useCatalog();
-  const [game, setGame] = useState<GameId | null>(selected ? (setById(selected.set_id)?.game ?? null) : null);
-  const [setId, setSetId] = useState<string | null>(selected?.set_id ?? null);
+  const startSet = selected?.set_id ?? (initialSetId && setById(initialSetId) ? initialSetId : null);
+  const [game, setGame] = useState<GameId | null>(startSet ? (setById(startSet)?.game ?? null) : null);
+  const [setId, setSetId] = useState<string | null>(startSet);
   const [query, setQuery] = useState('');
   const [scanning, setScanning] = useState(false);
   const recent = useMemo(() => getRecentProducts().map(productById).filter(Boolean) as Product[], [productById]);
@@ -36,22 +43,42 @@ export function ProductStep({
 
   return (
     <div className="space-y-6">
-      <button
-        onClick={() => setScanning(true)}
-        className="group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border border-brand-400/40 bg-gradient-to-br from-brand-400/15 via-ink-900 to-ink-900 p-4 text-left transition hover:border-brand-400/80"
-      >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-400 text-ink-950 shadow-[0_0_24px_-4px_rgba(20,224,194,0.8)] transition group-hover:scale-105">
-          <ScanLine size={24} />
-        </span>
-        <span className="min-w-0">
-          <span className="block font-display text-lg font-bold text-ink-50">Scan your pack</span>
-          <span className="block text-xs text-ink-300">Point your camera at the product. Demo recognition suggests a match.</span>
-        </span>
-      </button>
+      {scanUrl ? (
+        <div className="surface flex items-center gap-3 p-3">
+          <img src={scanUrl} alt="Your sealed product" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink-50">Product photo attached</p>
+            <p className="text-xs text-ink-400">It will appear on your pack page. Now pick the exact product below.</p>
+          </div>
+          <button onClick={() => setScanUrl(null)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-300 hover:bg-ink-800 hover:text-coral-300" aria-label="Remove product photo">
+            <X size={18} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setScanning(true)}
+          className="group flex min-h-[64px] w-full items-center gap-4 rounded-2xl border border-dashed border-ink-600 bg-ink-850 p-4 text-left transition hover:border-brand-400/60"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-brand-400/40 bg-brand-400/10 text-brand-300 transition group-hover:scale-105">
+            <Camera size={20} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-ink-50">Photograph the sealed product (optional)</span>
+            <span className="block text-xs text-ink-400">Adds evidence to your pack page. You still choose the product yourself.</span>
+          </span>
+        </button>
+      )}
 
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products or sets" className="input pl-11" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search products or sets"
+          aria-label="Search products or sets"
+          className="input min-h-[48px] pl-11"
+        />
       </div>
 
       {!q && recent.length > 0 && (
@@ -61,7 +88,7 @@ export function ProductStep({
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {recent.map((p) => (
-              <ProductTile key={p.id} product={p} selected={selected?.id === p.id} onClick={() => onSelect(p, null)} compact />
+              <ProductTile key={p.id} product={p} selected={selected?.id === p.id} onClick={() => onSelect(p)} compact />
             ))}
           </div>
         </div>
@@ -94,7 +121,7 @@ export function ProductStep({
               <p className="label mb-2">Set</p>
               <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
                 {gameSets.map((s) => (
-                  <button key={s.id} onClick={() => setSetId(s.id)} className={setId === s.id ? 'chip-on' : 'chip-off'}>
+                  <button key={s.id} onClick={() => setSetId(s.id)} className={`min-h-[40px] shrink-0 ${setId === s.id ? 'chip-on' : 'chip-off'}`}>
                     {s.name}
                     <span className="opacity-60">{s.release_year}</span>
                   </button>
@@ -115,22 +142,14 @@ export function ProductStep({
               {[...visible]
                 .sort((a, b) => PRODUCT_TYPES.findIndex((t) => t.id === a.product_type) - PRODUCT_TYPES.findIndex((t) => t.id === b.product_type))
                 .map((p) => (
-                  <ProductTile key={p.id} product={p} selected={selected?.id === p.id} onClick={() => onSelect(p, null)} />
+                  <ProductTile key={p.id} product={p} selected={selected?.id === p.id} onClick={() => onSelect(p)} />
                 ))}
             </div>
           )}
         </div>
       )}
 
-      <ScanModal
-        open={scanning}
-        onClose={() => setScanning(false)}
-        hintGame={game}
-        onConfirm={(p, url) => {
-          setScanning(false);
-          onSelect(p, url);
-        }}
-      />
+      <ProductPhotoModal open={scanning} onClose={() => setScanning(false)} onSaved={setScanUrl} />
     </div>
   );
 }

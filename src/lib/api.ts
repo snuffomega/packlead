@@ -13,11 +13,39 @@ import type {
   Product,
 } from './types';
 
-const OPENING_SELECT = '*, player:players(*)';
+const PLAYER_COLUMNS = 'id,username,avatar_color,avatar_icon,is_demo,created_at';
+const OPENING_SELECT = `*, player:players(${PLAYER_COLUMNS})`;
+
+const KNOWN_ERRORS: [string, string][] = [
+  ['Not signed in', 'Please sign in first.'],
+  ['Daily limit reached', 'You have reached the daily limit of 30 logged products. Try again tomorrow.'],
+  ['Invalid product', 'That product is no longer available. Pick another one.'],
+  ['Invalid cards', 'Add between 1 and 60 different cards.'],
+  ['Too many photos', 'You can attach up to 8 photos.'],
+  ['Invalid photo', 'One of your photos could not be verified. Remove it and upload it again.'],
+  ['Invalid video', 'Your video could not be verified. Remove it and upload it again.'],
+  ['Invalid scan', 'Your product photo could not be verified. Remove it and take it again.'],
+  ['Invalid quantity', 'Each card can be added between 1 and 20 times.'],
+  ['Duplicate card', 'A card was added twice. Adjust its quantity instead.'],
+  ['Card not in set', 'One of the cards does not belong to this set.'],
+  ['Invalid card name', 'Card names must be 1 to 80 characters.'],
+  ['Invalid value', 'Card values must be between $0 and $100,000.'],
+  ['Too many cards for product', 'That is more cards than this product contains.'],
+  ['Invalid name', 'Group names must be 2 to 40 characters.'],
+  ['Too many groups', 'You have reached the limit of groups you can create.'],
+  ['Group not found', 'No group found with that code.'],
+  ['Not authorized', 'You are not allowed to do that.'],
+  ['Not pending', 'This opening has already been reviewed.'],
+];
+
+export function friendly(error: unknown, fallback: string): string {
+  const msg = error && typeof error === 'object' && 'message' in error ? String((error as { message: unknown }).message) : '';
+  return KNOWN_ERRORS.find(([k]) => msg.includes(k))?.[1] ?? fallback;
+}
 
 function fail(context: string, error: unknown): never {
   console.error(context, error);
-  throw new Error(context);
+  throw new Error(friendly(error, context));
 }
 
 export async function fetchCatalog(): Promise<{ sets: CardSet[]; products: Product[] }> {
@@ -116,16 +144,23 @@ export async function fetchRanks(o: Opening) {
 }
 
 export async function fetchPlayer(id: string): Promise<Player | null> {
-  const { data, error } = await supabase.from('players').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('players').select(PLAYER_COLUMNS).eq('id', id).maybeSingle();
   if (error) fail('Could not load player', error);
   return data as Player | null;
+}
+
+export async function fetchMyPlayer(): Promise<Player | null> {
+  const { data, error } = await supabase.rpc('my_player');
+  if (error) fail('Could not load your profile', error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as Player | undefined) ?? null;
 }
 
 export async function createPlayer(username: string, avatar_color: AvatarColor, avatar_icon: AvatarIcon): Promise<Player> {
   const { data, error } = await supabase
     .from('players')
     .insert({ username, avatar_color, avatar_icon })
-    .select('*')
+    .select(PLAYER_COLUMNS)
     .maybeSingle();
   if (error) {
     if (error.code === '23505') throw new Error('That username is taken. Try another one.');
@@ -160,7 +195,7 @@ export async function fetchGroup(id: string): Promise<{ group: FriendGroup; memb
   const g = await supabase.from('friend_groups').select('*').eq('id', id).maybeSingle();
   if (g.error) fail('Could not load group', g.error);
   if (!g.data) return null;
-  const m = await supabase.from('group_members').select('player:players(*)').eq('group_id', id);
+  const m = await supabase.from('group_members').select(`player:players(${PLAYER_COLUMNS})`).eq('group_id', id);
   if (m.error) fail('Could not load members', m.error);
   const members = (m.data as unknown as { player: Player | null }[]).map((r) => r.player).filter(Boolean) as Player[];
   const ids = members.map((p) => p.id);
@@ -171,18 +206,15 @@ export async function fetchGroup(id: string): Promise<{ group: FriendGroup; memb
   return { group: g.data as FriendGroup, members, openings: o.data as Opening[] };
 }
 
-export async function createGroup(playerId: string, name: string): Promise<string> {
-  const { data, error } = await supabase.rpc('create_group', { p_player_id: playerId, p_name: name });
+export async function createGroup(name: string): Promise<string> {
+  const { data, error } = await supabase.rpc('create_group', { p_name: name });
   if (error || !data) fail('Could not create the group. Please try again.', error);
   return data as string;
 }
 
-export async function joinGroup(playerId: string, code: string): Promise<string> {
-  const { data, error } = await supabase.rpc('join_group', { p_player_id: playerId, p_code: code });
-  if (error || !data) {
-    if (error?.message?.includes('Group not found')) throw new Error('No group found with that code.');
-    fail('Could not join the group. Please try again.', error);
-  }
+export async function joinGroup(code: string): Promise<string> {
+  const { data, error } = await supabase.rpc('join_group', { p_code: code });
+  if (error || !data) fail('Could not join the group. Please try again.', error);
   return data as string;
 }
 
@@ -191,12 +223,10 @@ export interface PulledCardInput {
   name?: string;
   rarity?: string;
   value?: number;
-  image_url?: string | null;
   quantity: number;
 }
 
 export async function logOpening(args: {
-  playerId: string;
   productId: string;
   cards: PulledCardInput[];
   photoUrls: string[];
@@ -204,7 +234,6 @@ export async function logOpening(args: {
   scanUrl: string | null;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('log_opening', {
-    p_player_id: args.playerId,
     p_product_id: args.productId,
     p_cards: args.cards,
     p_photo_urls: args.photoUrls,
@@ -215,23 +244,37 @@ export async function logOpening(args: {
   return data as string;
 }
 
-export async function uploadMedia(file: File | Blob, folder: 'photos' | 'videos' | 'scans' | 'cards'): Promise<string> {
+const EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+};
+
+export async function uploadMedia(file: File | Blob, folder: 'photos' | 'videos' | 'scans'): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error('Please sign in before uploading.');
   const type = file.type || 'image/jpeg';
-  const ext = type.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg') ?? 'bin';
-  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+  const ext = EXTENSIONS[type];
+  if (!ext) throw new Error('That file type is not supported. Use a photo (JPG, PNG, WEBP, HEIC) or video (MP4, WEBM, MOV).');
+  const path = `${folder}/${auth.user.id}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from('rip-media').upload(path, file, { contentType: type, upsert: false });
   if (error) fail('Upload failed. Check the file type and size (max 50MB).', error);
   return supabase.storage.from('rip-media').getPublicUrl(path).data.publicUrl;
 }
 
-export async function adminCheck(passcode: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('admin_check', { p_passcode: passcode });
-  if (error) fail('Could not check the passcode', error);
+export async function checkModerator(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_moderator');
+  if (error) fail('Could not check moderator access', error);
   return data === true;
 }
 
-export async function adminReview(passcode: string, openingId: string, approve: boolean): Promise<void> {
-  const { error } = await supabase.rpc('admin_review', { p_passcode: passcode, p_opening_id: openingId, p_approve: approve });
+export async function adminReview(openingId: string, approve: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_review', { p_opening_id: openingId, p_approve: approve });
   if (error) fail('Could not save the review decision', error);
 }
 

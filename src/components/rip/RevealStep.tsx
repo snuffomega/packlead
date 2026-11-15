@@ -115,7 +115,11 @@ export function RevealStep({ openingId, playerId, onAnother }: { openingId: stri
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Global rank" value={ordinal(ranks.global.rank)} sub={`of ${ranks.global.total} ${type.plural.toLowerCase()}`} gold={ranks.global.rank <= 10} />
         <Stat label={`${g.short} rank`} value={ordinal(ranks.game.rank)} sub={`of ${ranks.game.total}`} />
-        <Stat label="Total value" value={money(opening.total_value)} sub="demo estimate" />
+        <Stat
+          label="Catalog value"
+          value={money(opening.total_value)}
+          sub={opening.estimate_count > 0 ? `+ ${money(opening.estimate_value)} unverified` : 'reference estimate'}
+        />
         <Stat label="Pack cost" value={money(opening.product_cost)} sub={multiple(opening.total_value, opening.product_cost) + ' return'} />
       </section>
 
@@ -129,17 +133,17 @@ export function RevealStep({ openingId, playerId, onAnother }: { openingId: stri
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Link to={`/pack/${opening.id}`} className="btn-primary py-3">
+        <Link to={`/pack/${opening.id}`} className="btn-primary min-h-[52px] py-3">
           View pack page <ArrowRight size={16} />
         </Link>
-        <button onClick={share} className="btn-ghost py-3">
+        <button onClick={share} className="btn-ghost min-h-[52px] py-3">
           <Share2 size={16} /> Share
         </button>
-        <button onClick={onAnother} className="btn-ghost py-3">
+        <button onClick={onAnother} className="btn-ghost min-h-[52px] py-3">
           <Plus size={16} /> Log another
         </button>
       </div>
-      <Link to="/" className="block text-center text-sm font-semibold text-brand-300 hover:text-brand-200">
+      <Link to="/" className="flex min-h-[44px] items-center justify-center text-sm font-semibold text-brand-300 hover:text-brand-200">
         See the leaderboard
       </Link>
 

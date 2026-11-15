@@ -49,19 +49,26 @@ export function PullsStep({
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or number" className="input pl-11" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or number"
+            aria-label="Search cards"
+            className="input min-h-[48px] pl-11"
+          />
         </div>
-        <button onClick={() => setManualOpen(true)} className="btn-ghost shrink-0 px-3" title="Add a card by hand">
+        <button onClick={() => setManualOpen(true)} className="btn-ghost min-h-[48px] min-w-[48px] shrink-0 px-3" aria-label="Add a card by hand">
           <PenLine size={16} /> <span className="hidden sm:inline">Add by hand</span>
         </button>
       </div>
 
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <button className={tier === null ? 'chip-on' : 'chip-off'} onClick={() => setTier(null)}>
+        <button className={`min-h-[40px] shrink-0 ${tier === null ? 'chip-on' : 'chip-off'}`} onClick={() => setTier(null)}>
           All rarities
         </button>
         {tiers.map((t) => (
-          <button key={t} className={tier === t ? 'chip-on' : 'chip-off'} onClick={() => setTier(t)}>
+          <button key={t} className={`min-h-[40px] shrink-0 ${tier === t ? 'chip-on' : 'chip-off'}`} onClick={() => setTier(t)}>
             <span className="h-2 w-2 rounded-full" style={{ background: RARITY_TIERS[t]?.color }} />
             {RARITY_TIERS[t]?.label}
           </button>
@@ -77,10 +84,10 @@ export function PullsStep({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink-50">{m.name}</p>
                 <p className="text-xs text-ink-400">
-                  {m.rarity} / {money(m.value)}
+                  {m.rarity} / {money(m.value)} / <span className="text-amber-200">unverified estimate</span>
                 </p>
               </div>
-              <button className="text-xs font-semibold text-coral-300 hover:text-coral-200" onClick={() => setManual(manual.filter((_, j) => j !== i))}>
+              <button className="min-h-[44px] px-2 text-xs font-semibold text-coral-300 hover:text-coral-200" onClick={() => setManual(manual.filter((_, j) => j !== i))}>
                 Remove
               </button>
             </div>
@@ -133,10 +140,10 @@ export function PullsStep({
                   {qty > 0 && (
                     <button
                       onClick={() => change(c.id, -1)}
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-ink-600 bg-ink-800 text-ink-200 hover:text-ink-50"
+                      className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-600 bg-ink-800 text-ink-200 hover:text-ink-50 active:scale-95"
                       aria-label={`Remove one ${c.name}`}
                     >
-                      <Minus size={12} />
+                      <Minus size={14} />
                     </button>
                   )}
                 </div>
@@ -147,7 +154,7 @@ export function PullsStep({
       )}
 
       <p className="flex items-center gap-1.5 text-xs text-ink-400">
-        <Plus size={12} /> Tap a card to add it. Tap again for duplicates. Values are demo estimates.
+        <Plus size={12} /> Tap a card to add it. Tap again for duplicates. Values are catalog reference estimates.
       </p>
 
       <ManualCardModal

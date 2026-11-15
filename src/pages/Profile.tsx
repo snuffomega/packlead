@@ -1,10 +1,10 @@
-import { Gem, Layers, Plus, ShieldCheck, Trophy, Users } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Gem, Layers, LogOut, Plus, ShieldCheck, Trophy, Users } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { DemoTag } from '../components/Badges';
 import { CardArt } from '../components/CardArt';
-import { JoinForm } from '../components/JoinModal';
+import { AccountGate } from '../components/JoinModal';
 import { LeaderRow } from '../components/LeaderRow';
 import { EmptyState, ErrorState, RowsSkeleton, Skeleton } from '../components/States';
 import { fetchPlayer, fetchPlayerGroups, fetchPlayerOpenings } from '../lib/api';
@@ -15,7 +15,7 @@ import { useAsync } from '../lib/useAsync';
 
 export default function Profile() {
   const { id } = useParams();
-  const { player, loading, setPlayer } = useSession();
+  const { player, loading } = useSession();
 
   if (!id) {
     if (loading) return <Skeleton className="h-72" />;
@@ -23,9 +23,9 @@ export default function Profile() {
       return (
         <div className="mx-auto max-w-md">
           <h1 className="font-display text-3xl font-bold text-ink-50">Your Profile</h1>
-          <p className="mb-6 mt-1 text-sm text-ink-400">Create a player profile to track your packs.</p>
+          <p className="mb-6 mt-1 text-sm text-ink-400">Sign in to track your packs on any device. If you forgot your password, choose "I have an account" to reset it.</p>
           <div className="surface p-5">
-            <JoinForm onDone={setPlayer} />
+            <AccountGate />
           </div>
         </div>
       );
@@ -36,9 +36,13 @@ export default function Profile() {
 
 function ProfileView({ playerId, isMe }: { playerId: string; isMe: boolean }) {
   const data = useAsync(async () => {
-    const [p, openings, groups] = await Promise.all([fetchPlayer(playerId), fetchPlayerOpenings(playerId), fetchPlayerGroups(playerId)]);
+    const [p, openings, groups] = await Promise.all([
+      fetchPlayer(playerId),
+      fetchPlayerOpenings(playerId),
+      isMe ? fetchPlayerGroups(playerId) : Promise.resolve([]),
+    ]);
     return { p, openings, groups };
-  }, [playerId]);
+  }, [playerId, isMe]);
 
   if (data.error) return <ErrorState message={data.error} onRetry={data.reload} />;
   if (!data.data) return <ProfileSkeleton />;
@@ -66,7 +70,7 @@ function ProfileView({ playerId, isMe }: { playerId: string; isMe: boolean }) {
                 {p.is_demo && <DemoTag />}
               </div>
               <p className="text-sm text-ink-400">Ripping since {longDate(p.created_at)}</p>
-              {isMe && <p className="mt-1 text-xs font-semibold text-brand-300">This is you on this device</p>}
+              {isMe && <p className="mt-1 text-xs font-semibold text-brand-300">This is you</p>}
             </div>
           </div>
           {bestPull && (
@@ -91,12 +95,14 @@ function ProfileView({ playerId, isMe }: { playerId: string; isMe: boolean }) {
         <Stat icon={<ShieldCheck size={15} />} label="Verified rips" value={String(verified)} />
       </section>
 
+      {isMe && <AccountLine />}
+
       {groups.length > 0 && (
         <section>
           <h2 className="mb-3 font-display text-xl font-bold text-ink-50">Groups</h2>
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
             {groups.map((g) => (
-              <Link key={g.id} to={`/friends/${g.id}`} className="chip-off py-2">
+              <Link key={g.id} to={`/friends/${g.id}`} className="chip-off min-h-[40px] shrink-0 py-2">
                 <Users size={13} /> {g.name}
                 <span className="opacity-60">{g.member_count}</span>
               </Link>
@@ -128,6 +134,29 @@ function ProfileView({ playerId, isMe }: { playerId: string; isMe: boolean }) {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AccountLine() {
+  const { user, signOut } = useSession();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="surface flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+      <span className="min-w-0 truncate text-ink-300">
+        Signed in as <span className="font-semibold text-ink-100">{user?.email}</span>
+      </span>
+      <button
+        className="btn-ghost min-h-[44px] px-3 text-xs"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await signOut();
+          setBusy(false);
+        }}
+      >
+        <LogOut size={14} /> Sign out
+      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Camera, ImagePlus, Loader2, ShieldCheck, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { uploadMedia } from '../../lib/api';
+import { compressImage } from '../../lib/media';
 
 const MAX_PHOTOS = 8;
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -19,6 +20,7 @@ export function EvidenceStep({
   onBusy: (busy: boolean) => void;
 }) {
   const photoRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const [photoBusy, setPhotoBusy] = useState(0);
   const [videoBusy, setVideoBusy] = useState(false);
@@ -33,6 +35,7 @@ export function EvidenceStep({
   const addPhotos = async (files: FileList | null) => {
     if (!files) return;
     setError(null);
+    if (!navigator.onLine) return setError('You are offline. Reconnect to upload photos.');
     const list = Array.from(files)
       .filter((f) => f.type.startsWith('image/'))
       .slice(0, MAX_PHOTOS - photos.length);
@@ -41,10 +44,10 @@ export function EvidenceStep({
     await Promise.all(
       list.map(async (f) => {
         try {
-          const url = await uploadMedia(f, 'photos');
+          const url = await uploadMedia(await compressImage(f), 'photos');
           setPhotos((prev) => (prev.length < MAX_PHOTOS ? [...prev, url] : prev));
         } catch {
-          setError('A photo could not be uploaded. Please try again.');
+          setError('A photo could not be uploaded. Check your connection and try again.');
         } finally {
           track(-1);
         }
@@ -55,6 +58,7 @@ export function EvidenceStep({
   const addVideo = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
+    if (!navigator.onLine) return setError('You are offline. Reconnect to upload your video.');
     if (!file.type.startsWith('video/')) return setError('Please choose a video file.');
     if (file.size > MAX_BYTES) return setError('Videos must be under 50MB. Try a shorter clip.');
     setVideoBusy(true);
@@ -70,6 +74,7 @@ export function EvidenceStep({
   return (
     <div className="space-y-4">
       <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} />
       <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" className="hidden" onChange={(e) => { addVideo(e.target.files?.[0]); e.target.value = ''; }} />
 
       <div className="surface p-4">
@@ -85,13 +90,15 @@ export function EvidenceStep({
         <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
           {photos.map((url) => (
             <div key={url} className="group relative aspect-square animate-pop-in overflow-hidden rounded-xl">
-              <img src={url} alt="Pull" className="h-full w-full object-cover" />
+              <img src={url} alt="Pull" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               <button
                 onClick={() => setPhotos((prev) => prev.filter((p) => p !== url))}
-                className="absolute right-1 top-1 rounded-full bg-ink-950/80 p-1 text-ink-100 hover:text-coral-300"
+                className="absolute right-0 top-0 flex h-10 w-10 items-start justify-end p-1.5 text-ink-100 hover:text-coral-300"
                 aria-label="Remove photo"
               >
-                <X size={12} />
+                <span className="rounded-full bg-ink-950/85 p-1">
+                  <X size={12} />
+                </span>
               </button>
             </div>
           ))}
@@ -101,13 +108,24 @@ export function EvidenceStep({
             </div>
           ))}
           {photos.length + photoBusy < MAX_PHOTOS && (
-            <button
-              onClick={() => photoRef.current?.click()}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-ink-500 text-ink-300 transition hover:border-sky-400 hover:text-sky-200"
-            >
-              <ImagePlus size={18} />
-              <span className="text-[10px] font-semibold">Add</span>
-            </button>
+            <>
+              <button
+                onClick={() => cameraRef.current?.click()}
+                aria-label="Take a photo"
+                className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-sky-400/60 text-sky-200 transition hover:border-sky-300"
+              >
+                <Camera size={18} />
+                <span className="text-[10px] font-semibold">Camera</span>
+              </button>
+              <button
+                onClick={() => photoRef.current?.click()}
+                aria-label="Choose photos"
+                className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-ink-500 text-ink-300 transition hover:border-sky-400 hover:text-sky-200"
+              >
+                <ImagePlus size={18} />
+                <span className="text-[10px] font-semibold">Library</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -129,13 +147,13 @@ export function EvidenceStep({
             <video src={video} controls playsInline preload="metadata" className="aspect-video w-full rounded-xl bg-ink-950" />
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-amber-200">Will be submitted for review</span>
-              <button className="text-xs font-semibold text-coral-300 hover:text-coral-200" onClick={() => setVideo(null)}>
+              <button className="min-h-[44px] px-2 text-xs font-semibold text-coral-300 hover:text-coral-200" onClick={() => setVideo(null)}>
                 Remove video
               </button>
             </div>
           </div>
         ) : (
-          <button onClick={() => videoRef.current?.click()} disabled={videoBusy} className="btn-ghost mt-4 w-full border-gold-400/40">
+          <button onClick={() => videoRef.current?.click()} disabled={videoBusy} className="btn-ghost mt-4 min-h-[52px] w-full border-gold-400/40">
             {videoBusy ? <Loader2 size={16} className="animate-spin" /> : <Video size={16} className="text-gold-300" />}
             {videoBusy ? 'Uploading video...' : 'Record or upload video'}
           </button>
@@ -143,7 +161,7 @@ export function EvidenceStep({
       </div>
 
       {error && <p className="text-sm text-coral-300">{error}</p>}
-      <p className="text-xs text-ink-400">Photos and videos are optional. Anyone with the pack link can view them.</p>
+      <p className="text-xs text-ink-400">Photos and videos are optional. Photos are resized on your device for faster uploads. Anyone with the pack link can view them.</p>
     </div>
   );
 }

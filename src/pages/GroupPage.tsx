@@ -1,11 +1,12 @@
-import { ArrowLeft, Check, Copy, Swords, Users } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Lock, Share2, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Avatar, PlayerLink } from '../components/Avatar';
 import { DemoTag, EvidenceBadge } from '../components/Badges';
 import { CardArt } from '../components/CardArt';
+import { AccountGate } from '../components/JoinModal';
 import { EmptyState, ErrorState, RowsSkeleton, Skeleton } from '../components/States';
-import { fetchGroup, joinGroup } from '../lib/api';
+import { fetchGroup } from '../lib/api';
 import { PRODUCT_TYPES, productTypeMeta } from '../lib/catalog';
 import { money, multiple } from '../lib/format';
 import { useSession } from '../lib/session';
@@ -14,13 +15,30 @@ import { useAsync } from '../lib/useAsync';
 
 export default function GroupPage() {
   const { id = '' } = useParams();
-  const { player, openJoin } = useSession();
+  const { player, loading } = useSession();
+  if (loading) return <Skeleton className="h-64 rounded-3xl" />;
+  if (!player) {
+    return (
+      <div className="mx-auto max-w-md">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-ink-700 bg-ink-850 text-brand-300">
+          <Lock size={20} />
+        </span>
+        <h1 className="mt-4 font-display text-3xl font-bold text-ink-50">Private group</h1>
+        <p className="mb-6 mt-1 text-sm text-ink-400">Friend groups are only visible to their members. Sign in to see this group.</p>
+        <div className="surface p-5">
+          <AccountGate />
+        </div>
+      </div>
+    );
+  }
+  return <GroupView id={id} player={player} />;
+}
+
+function GroupView({ id, player }: { id: string; player: Player }) {
   const data = useAsync(() => fetchGroup(id), [id]);
   const [type, setType] = useState<ProductType>('booster_pack');
   const [rivalId, setRivalId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
 
   const board = useMemo(() => {
     if (!data.data) return [];
@@ -45,14 +63,13 @@ export default function GroupPage() {
     );
   }
   if (!data.data) {
-    return <EmptyState icon={<Users size={24} />} title="Group not found" body="This group may not exist." action={<Link to="/friends" className="btn-primary">Back to Friends</Link>} />;
+    return <EmptyState icon={<Users size={24} />} title="Group not available" body="This group does not exist, or you are not a member. Ask a member for the invite code." action={<Link to="/friends" className="btn-primary">Back to Friends</Link>} />;
   }
 
   const { group, members } = data.data;
-  const isMember = !!player && members.some((m) => m.id === player.id);
   const inviteUrl = `${window.location.origin}/join/${group.code}`;
-  const mine = board.find((b) => b.member.id === player?.id);
-  const rivals = board.filter((b) => b.member.id !== player?.id);
+  const mine = board.find((b) => b.member.id === player.id);
+  const rivals = board.filter((b) => b.member.id !== player.id);
   const rival = rivals.find((b) => b.member.id === rivalId) ?? rivals.find((b) => b.best) ?? null;
 
   const copy = async () => {
@@ -65,18 +82,16 @@ export default function GroupPage() {
     }
   };
 
-  const join = async () => {
-    if (!player) return openJoin();
-    setJoining(true);
-    setJoinError(null);
-    try {
-      await joinGroup(player.id, group.code);
-      data.reload();
-    } catch (e) {
-      setJoinError((e as Error).message);
-    } finally {
-      setJoining(false);
+  const share = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Join ${group.name} on PackLead`, text: `Join my PackLead group with code ${group.code}`, url: inviteUrl });
+        return;
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return;
+      }
     }
+    copy();
   };
 
   return (
@@ -103,25 +118,21 @@ export default function GroupPage() {
               {members.length > 8 && <span className="flex h-8 items-center pl-3 text-xs text-ink-400">+{members.length - 8}</span>}
             </div>
           </div>
-          {isMember ? (
-            <div className="rounded-2xl border border-ink-700 bg-ink-850 p-3">
-              <p className="label">Invite code</p>
-              <div className="mt-1 flex items-center gap-3">
-                <span className="font-display text-2xl font-bold tracking-[0.25em] text-brand-300">{group.code}</span>
-                <button onClick={copy} className="btn-ghost px-3 py-2 text-xs">
-                  {copied ? <Check size={14} className="text-brand-300" /> : <Copy size={14} />}
-                  {copied ? 'Copied' : 'Copy link'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <button onClick={join} disabled={joining} className="btn-primary">
-                <Users size={16} /> Join this group
+          <div className="rounded-2xl border border-ink-700 bg-ink-850 p-3">
+            <p className="label">Invite code</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="mr-1 font-display text-2xl font-bold tracking-[0.25em] text-brand-300">{group.code}</span>
+              <button onClick={copy} className="btn-ghost min-h-[44px] px-3 text-xs">
+                {copied ? <Check size={14} className="text-brand-300" /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy link'}
               </button>
-              {joinError && <p className="mt-2 text-sm text-coral-300">{joinError}</p>}
+              {'share' in navigator && (
+                <button onClick={share} className="btn-ghost min-h-[44px] px-3 text-xs" aria-label="Share invite">
+                  <Share2 size={14} /> Share
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </section>
 
@@ -133,7 +144,7 @@ export default function GroupPage() {
         ))}
       </div>
 
-      {isMember && rival && (
+      {rival && (
         <section>
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-display text-xl font-bold text-ink-50">
@@ -166,7 +177,7 @@ export default function GroupPage() {
             <div
               key={member.id}
               style={{ animationDelay: `${i * 35}ms` }}
-              className={`surface flex animate-fade-up items-center gap-3 p-3 ${member.id === player?.id ? 'border-brand-400/50' : ''}`}
+              className={`surface flex animate-fade-up items-center gap-3 p-3 ${member.id === player.id ? 'border-brand-400/50' : ''}`}
             >
               <span className={`score-num w-7 text-center text-lg ${i === 0 && best ? 'text-gold-300' : 'text-ink-400'}`}>{best ? i + 1 : '-'}</span>
               <div className="min-w-0 flex-1">

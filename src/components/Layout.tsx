@@ -1,9 +1,10 @@
-import { Compass, Plus, Trophy, User, Users } from 'lucide-react';
+import { Compass, Plus, Trophy, User, Users, WifiOff } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useSession } from '../lib/session';
+import { useOnline } from '../lib/useOnline';
 import { Avatar } from './Avatar';
-import { JoinModal } from './JoinModal';
+import { JoinModal, PasswordRecoveryModal } from './JoinModal';
 
 const NAV = [
   { to: '/', label: 'Rankings', Icon: Trophy, end: true },
@@ -31,8 +32,9 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { player, openJoin } = useSession();
+  const { user, player, loading, openJoin } = useSession();
   const { pathname } = useLocation();
+  const online = useOnline();
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -61,25 +63,33 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link to="/rip" className="btn-primary hidden md:inline-flex">
               <Plus size={17} strokeWidth={2.6} /> Log a Pack
             </Link>
-            {player ? (
+            {loading ? (
+              <span className="h-9 w-20 animate-pulse rounded-xl bg-ink-800" aria-hidden="true" />
+            ) : player ? (
               <Link to="/profile" className="rounded-xl transition hover:opacity-80" aria-label="Your profile">
                 <Avatar color={player.avatar_color} icon={player.avatar_icon} size="sm" />
               </Link>
             ) : (
-              <button onClick={openJoin} className="btn-ghost px-3 py-2 text-xs">
-                Join
+              <button onClick={openJoin} className="btn-ghost min-h-[44px] px-3.5 text-xs">
+                {user ? 'Finish profile' : 'Sign in'}
               </button>
             )}
           </div>
         </div>
       </header>
 
+      {!online && (
+        <div role="status" className="sticky top-16 z-30 flex items-center justify-center gap-2 border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-100">
+          <WifiOff size={14} /> You are offline. Browsing saved pages only; logging resumes when you reconnect.
+        </div>
+      )}
+
       <main className="mx-auto max-w-6xl px-4 pb-10 pt-5 sm:pt-8">{children}</main>
 
       <footer className="mx-auto hidden max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-ink-800 px-4 py-8 text-xs text-ink-400 md:flex">
-        <span>PackLead is a concept prototype. Card values and prices are demo estimates. Scores are provisional.</span>
+        <span>Card values and prices are reference estimates, not live market prices. Entries marked Demo are sample data.</span>
         <Link to="/review" className="font-semibold text-ink-300 hover:text-ink-50">
-          Moderator review (demo)
+          Moderator review
         </Link>
       </footer>
 
@@ -126,6 +136,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       <JoinModal />
+      <PasswordRecoveryModal />
     </div>
   );
 }

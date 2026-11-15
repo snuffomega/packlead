@@ -29,10 +29,18 @@ export function CardViewer({ card, game, onClose }: { card: ViewerCard | null; g
               {card.quantity && card.quantity > 1 ? ` / x${card.quantity}` : ''}
               {card.is_manual ? ' / Added by hand' : ''}
             </p>
-            <div className="mt-4 inline-flex flex-col items-center rounded-2xl border border-gold-400/30 bg-gold-400/10 px-6 py-3">
-              <span className="score-num text-3xl text-gold-300">{money(card.value)}</span>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gold-200/80">Demo estimate</span>
-            </div>
+            {card.is_manual ? (
+              <div className="mt-4 inline-flex flex-col items-center rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3">
+                <span className="score-num text-3xl text-amber-100">{money(card.value)}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-200">Unverified estimate</span>
+                <span className="mt-0.5 text-[11px] text-ink-300">Not counted in the Rip Score</span>
+              </div>
+            ) : (
+              <div className="mt-4 inline-flex flex-col items-center rounded-2xl border border-gold-400/30 bg-gold-400/10 px-6 py-3">
+                <span className="score-num text-3xl text-gold-300">{money(card.value)}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gold-200/80">Catalog reference value</span>
+              </div>
+            )}
           </div>
         </div>
       )}

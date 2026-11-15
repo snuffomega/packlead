@@ -58,6 +58,8 @@ export interface Opening {
   best_card_tier: number;
   best_card_image: string | null;
   card_count: number;
+  estimate_value: number;
+  estimate_count: number;
   score: number;
   evidence: 'logged' | 'photo';
   video_review: VideoReview;

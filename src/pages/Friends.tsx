@@ -2,22 +2,22 @@ import { ArrowRight, Hash, Plus, Users } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DemoTag } from '../components/Badges';
-import { JoinForm } from '../components/JoinModal';
+import { AccountGate } from '../components/JoinModal';
 import { EmptyState, ErrorState, RowsSkeleton, Skeleton } from '../components/States';
 import { createGroup, fetchPlayerGroups, joinGroup } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useAsync } from '../lib/useAsync';
 
 export default function Friends() {
-  const { player, loading, setPlayer } = useSession();
+  const { player, loading } = useSession();
   if (loading) return <Skeleton className="h-72" />;
   if (!player) {
     return (
       <div className="mx-auto max-w-md">
         <h1 className="font-display text-3xl font-bold text-ink-50">Friends</h1>
-        <p className="mb-6 mt-1 text-sm text-ink-400">Create a profile to start or join a group with friends.</p>
+        <p className="mb-6 mt-1 text-sm text-ink-400">Sign in to start a private group or join one with an invite code. Groups are only visible to their members.</p>
         <div className="surface p-5">
-          <JoinForm onDone={setPlayer} />
+          <AccountGate />
         </div>
       </div>
     );
@@ -40,7 +40,7 @@ function FriendsView({ playerId }: { playerId: string }) {
     setBusy('create');
     setError(null);
     try {
-      navigate(`/friends/${await createGroup(playerId, n)}`);
+      navigate(`/friends/${await createGroup(n)}`);
     } catch (err) {
       setError({ form: 'create', msg: (err as Error).message });
     } finally {
@@ -55,7 +55,7 @@ function FriendsView({ playerId }: { playerId: string }) {
     setBusy('join');
     setError(null);
     try {
-      navigate(`/friends/${await joinGroup(playerId, c)}`);
+      navigate(`/friends/${await joinGroup(c)}`);
     } catch (err) {
       setError({ form: 'join', msg: (err as Error).message });
     } finally {
@@ -67,7 +67,7 @@ function FriendsView({ playerId }: { playerId: string }) {
     <div className="space-y-8">
       <div>
         <h1 className="font-display text-3xl font-bold text-ink-50">Friends</h1>
-        <p className="mt-1 text-sm text-ink-400">Private leaderboards for your crew. Share a code and see who rips best.</p>
+        <p className="mt-1 text-sm text-ink-400">Private leaderboards for your crew. Only members can see a group, so share the code with people you trust.</p>
       </div>
 
       <section>
@@ -111,20 +111,20 @@ function FriendsView({ playerId }: { playerId: string }) {
             <Hash size={18} className="text-brand-300" /> Join with a code
           </h3>
           <input
-            className="input font-display uppercase tracking-[0.3em]"
+            className="input min-h-[48px] font-display uppercase tracking-[0.3em]"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 8))}
             placeholder="CODE"
             aria-label="Invite code"
           />
-          {error?.form === 'join' && <p className="text-sm text-coral-300">{error.msg}</p>}
-          <button className="btn-primary w-full" disabled={!code || busy === 'join'}>
-            Join group
+          {error?.form === 'join' && <p role="alert" className="text-sm text-coral-300">{error.msg}</p>}
+          <button className="btn-primary min-h-[48px] w-full" disabled={!code || busy === 'join'}>
+            {busy === 'join' ? 'Joining...' : 'Join group'}
           </button>
           <p className="text-xs text-ink-400">
             Try the demo groups:{' '}
             {['FRIDAY', 'SHOP42'].map((c) => (
-              <button key={c} type="button" onClick={() => setCode(c)} className="mr-2 font-semibold text-brand-300 hover:text-brand-200">
+              <button key={c} type="button" onClick={() => setCode(c)} className="mr-1 min-h-[44px] px-1 font-semibold text-brand-300 hover:text-brand-200">
                 {c}
               </button>
             ))}
@@ -135,10 +135,10 @@ function FriendsView({ playerId }: { playerId: string }) {
           <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink-50">
             <Plus size={18} className="text-brand-300" /> Create a group
           </h3>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunday Break Club" maxLength={40} aria-label="Group name" />
-          {error?.form === 'create' && <p className="text-sm text-coral-300">{error.msg}</p>}
-          <button className="btn-ghost w-full" disabled={!name.trim() || busy === 'create'}>
-            Create group
+          <input className="input min-h-[48px]" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunday Break Club" maxLength={40} aria-label="Group name" />
+          {error?.form === 'create' && <p role="alert" className="text-sm text-coral-300">{error.msg}</p>}
+          <button className="btn-ghost min-h-[48px] w-full" disabled={!name.trim() || busy === 'create'}>
+            {busy === 'create' ? 'Creating...' : 'Create group'}
           </button>
           <p className="text-xs text-ink-400">You will get an invite code and link to share.</p>
         </form>

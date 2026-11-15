@@ -150,10 +150,16 @@ export default function PackPage() {
           </div>
           <div className="surface divide-y divide-ink-700/70">
             <Row label="Pack cost" value={money(opening.product_cost)} />
-            <Row label="Total pulled value" value={money(opening.total_value)} highlight />
+            <Row label="Catalog value (scored)" value={money(opening.total_value)} highlight />
+            {opening.estimate_count > 0 && (
+              <Row label={`Unverified estimates (${opening.estimate_count})`} value={money(opening.estimate_value)} muted />
+            )}
             <Row label="Cards logged" value={String(opening.card_count)} />
             <Row label="Hits (Hit tier and up)" value={String(hits)} />
-            <p className="px-4 py-2.5 text-[11px] text-ink-400">All values are demo estimates, not live market prices.</p>
+            <p className="px-4 py-2.5 text-[11px] text-ink-400">
+              Values are reference estimates, not live market prices.
+              {opening.estimate_count > 0 && ' Cards added by hand use the player\'s own estimate and do not count toward the Rip Score.'}
+            </p>
           </div>
           <EvidencePanel scanUrl={opening.scan_url} photoUrls={opening.photo_urls} videoUrl={opening.video_url} review={opening.video_review} />
           <ScoreExplainer />
@@ -177,6 +183,11 @@ export default function PackPage() {
                 >
                   <div className="relative transition duration-300 group-hover:-translate-y-1">
                     <CardArt name={c.name} rarity={c.rarity} tier={c.tier} image={c.image_url} game={opening.game} />
+                    {c.is_manual && (
+                      <span className="absolute left-1.5 top-1.5 z-10 rounded-md border border-amber-400/50 bg-ink-950/85 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+                        Est.
+                      </span>
+                    )}
                     {c.quantity > 1 && (
                       <span className="absolute right-1.5 top-1.5 z-10 rounded-md bg-ink-950/85 px-1.5 py-0.5 text-[10px] font-bold text-ink-50">
                         x{c.quantity}
@@ -184,7 +195,7 @@ export default function PackPage() {
                     )}
                   </div>
                   <p className="mt-2 truncate text-xs font-semibold text-ink-100">{c.name}</p>
-                  <p className="text-[11px] font-semibold text-gold-300">{money(c.value)}</p>
+                  <p className={`text-[11px] font-semibold ${c.is_manual ? 'text-ink-400' : 'text-gold-300'}`}>{money(c.value)}</p>
                 </button>
               ))}
             </div>
@@ -229,11 +240,11 @@ function RankStat({
   );
 }
 
-function Row({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+function Row({ label, value, highlight = false, muted = false }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 text-sm">
-      <span className="text-ink-300">{label}</span>
-      <span className={`font-semibold tabular-nums ${highlight ? 'text-gold-300' : 'text-ink-50'}`}>{value}</span>
+    <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+      <span className={muted ? 'text-ink-400' : 'text-ink-300'}>{label}</span>
+      <span className={`font-semibold tabular-nums ${highlight ? 'text-gold-300' : muted ? 'text-ink-300' : 'text-ink-50'}`}>{value}</span>
     </div>
   );
 }

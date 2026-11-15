@@ -28,7 +28,7 @@ export function ManualCardModal({ open, onClose, onAdd }: { open: boolean; onClo
   return (
     <Modal open={open} onClose={onClose} title="Add a card by hand">
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm text-ink-300">Can't find a card in the list? Add it with your own estimated value.</p>
+        <p className="text-sm text-ink-300">Can't find a card in the list? Add it with your own estimate. It will be shown as an unverified estimate and does not count toward your Rip Score.</p>
         <div>
           <label className="label" htmlFor="mc-name">
             Card name

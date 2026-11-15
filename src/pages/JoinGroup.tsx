@@ -1,7 +1,7 @@
 import { Loader2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { JoinForm } from '../components/JoinModal';
+import { AccountGate } from '../components/JoinModal';
 import { EmptyState, Skeleton } from '../components/States';
 import { joinGroup } from '../lib/api';
 import { useSession } from '../lib/session';
@@ -9,13 +9,13 @@ import { useSession } from '../lib/session';
 export default function JoinGroup() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
-  const { player, loading, setPlayer } = useSession();
+  const { player, loading } = useSession();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!player) return;
     let active = true;
-    joinGroup(player.id, code)
+    joinGroup(code)
       .then((id) => active && navigate(`/friends/${id}`, { replace: true }))
       .catch((e: Error) => active && setError(e.message));
     return () => {
@@ -32,9 +32,9 @@ export default function JoinGroup() {
       <div className="mx-auto max-w-md">
         <p className="label text-brand-300">You're invited</p>
         <h1 className="mt-1 font-display text-3xl font-bold text-ink-50">Join group {code.toUpperCase()}</h1>
-        <p className="mb-6 mt-1 text-sm text-ink-400">Create your player profile and you will be added to the group.</p>
+        <p className="mb-6 mt-1 text-sm text-ink-400">Sign in or create an account and you will be added to the group automatically.</p>
         <div className="surface p-5">
-          <JoinForm onDone={setPlayer} />
+          <AccountGate />
         </div>
       </div>
     );

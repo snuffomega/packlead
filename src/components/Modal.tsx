@@ -35,7 +35,7 @@ export function Modal({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           {title ? <h2 className="font-display text-xl font-bold text-ink-50">{title}</h2> : <span />}
-          <button onClick={onClose} className="rounded-lg p-1.5 text-ink-300 transition hover:bg-ink-800 hover:text-ink-50" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-300 transition hover:bg-ink-800 hover:text-ink-50" aria-label="Close">
             <X size={20} />
           </button>
         </div>
