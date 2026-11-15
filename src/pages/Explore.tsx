@@ -1,4 +1,4 @@
-import { Crown, Gem, ShieldCheck, Trophy } from 'lucide-react';
+import { ChevronRight, Crown, Gem, Layers, ShieldCheck, Trophy } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DEFAULT_FILTERS, FilterBar } from '../components/FilterBar';
@@ -7,6 +7,7 @@ import { OpeningTile } from '../components/OpeningTile';
 import { EmptyState, ErrorState, RowsSkeleton } from '../components/States';
 import { fetchLeaderboard, fetchTopOpenings } from '../lib/api';
 import { GAMES, PRODUCT_TYPES, gameMeta } from '../lib/catalog';
+import { useCatalog } from '../lib/catalogContext';
 import { useSession } from '../lib/session';
 import type { LeaderboardFilters, Opening } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'best', label: 'Best Single Pack', Icon: Trophy },
   { id: 'pulls', label: 'Biggest Pull', Icon: Gem },
   { id: 'hall', label: 'Hall of Fame', Icon: Crown },
+  { id: 'sets', label: 'Sets', Icon: Layers },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -34,7 +36,7 @@ export default function Explore() {
           <button
             key={t.id}
             onClick={() => setParams({ tab: t.id }, { replace: true })}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-bold transition ${
+            className={`inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-bold transition ${
               tab === t.id ? 'border-brand-400/60 bg-brand-400/15 text-brand-100' : 'border-ink-700 bg-ink-850 text-ink-300 hover:text-ink-50'
             }`}
           >
@@ -42,7 +44,9 @@ export default function Explore() {
           </button>
         ))}
       </div>
-      {tab === 'hall' ? (
+      {tab === 'sets' ? (
+        <SetDirectory />
+      ) : tab === 'hall' ? (
         <HallOfFame />
       ) : (
         <>
@@ -144,6 +148,45 @@ function HallOfFame() {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+function SetDirectory() {
+  const { sets, loading, error } = useCatalog();
+  if (error) return <ErrorState message={error} />;
+  if (loading) return <RowsSkeleton rows={6} />;
+  return (
+    <div className="space-y-8">
+      {GAMES.map((g) => {
+        const list = sets.filter((s) => s.game === g.id).sort((a, b) => a.sort - b.sort);
+        if (!list.length) return null;
+        return (
+          <section key={g.id}>
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider" style={{ color: g.color }}>
+              {g.label}
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {list.map((s) => (
+                <Link
+                  key={s.id}
+                  to={`/set/${s.id}`}
+                  className="group flex min-h-[60px] items-center gap-3 rounded-2xl border border-ink-700/70 bg-ink-850/70 px-4 py-3 transition hover:-translate-y-0.5 hover:border-ink-500 hover:bg-ink-800"
+                >
+                  <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: g.color }} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-ink-50">{s.name}</span>
+                    <span className="text-xs text-ink-400">
+                      {s.code} / {s.release_year}
+                    </span>
+                  </span>
+                  <ChevronRight size={18} className="shrink-0 text-ink-500 transition group-hover:translate-x-0.5 group-hover:text-ink-200" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

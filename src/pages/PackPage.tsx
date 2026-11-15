@@ -145,7 +145,11 @@ export default function PackPage() {
             <div className="min-w-0">
               <p className="label">{type.label}</p>
               <p className="mt-1 font-display text-lg font-bold leading-tight text-ink-50">{opening.product_name}</p>
-              <p className="mt-0.5 truncate text-xs text-ink-400">{set?.name}</p>
+              {set && (
+                <Link to={`/set/${set.id}`} className="mt-0.5 block truncate text-xs font-semibold text-brand-300 underline-offset-2 hover:underline">
+                  {set.name}
+                </Link>
+              )}
             </div>
           </div>
           <div className="surface divide-y divide-ink-700/70">

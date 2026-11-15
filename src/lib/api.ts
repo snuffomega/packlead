@@ -103,6 +103,14 @@ export async function fetchTopOpenings(limit: number, hideDemo: boolean): Promis
   return data as Opening[];
 }
 
+export async function fetchSetOpenings(setId: string, hideDemo: boolean): Promise<Opening[]> {
+  let query = supabase.from('openings').select(OPENING_SELECT).eq('set_id', setId).order('score', { ascending: false });
+  if (hideDemo) query = query.eq('is_demo', false);
+  const { data, error } = await query.limit(300);
+  if (error) fail('Could not load openings for this set', error);
+  return data as Opening[];
+}
+
 export async function fetchOpening(id: string): Promise<{ opening: Opening; cards: OpeningCard[] } | null> {
   const [o, c] = await Promise.all([
     supabase.from('openings').select(OPENING_SELECT).eq('id', id).maybeSingle(),

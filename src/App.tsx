@@ -10,6 +10,7 @@ import NotFound from './pages/NotFound';
 import PackPage from './pages/PackPage';
 import Profile from './pages/Profile';
 import Review from './pages/Review';
+import SetHub from './pages/SetHub';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/pack/:id" element={<PackPage />} />
+        <Route path="/set/:id" element={<SetHub />} />
         <Route path="/rip" element={<LogPack />} />
         <Route path="/friends" element={<Friends />} />
         <Route path="/friends/:id" element={<GroupPage />} />
